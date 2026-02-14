@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  firebaseUid   String    @unique
+  email         String    @unique
+  fullName      String
+  DOB           DateTime? @db.Date
+  phoneNumber   String?
+  address       String?
+  role          UserRole    @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  appointments  Appointment[]
+  notifications Notification[]
+}
+
+enum UserRole {
+  UNASSIGNED
+  USER
+  ADMIN
+}
+
+model Doctor {
+  id              String      @id @default(cuid())
+  name            String
+  imageUrl        String?
+  specialization  String?
+  schedules       DoctorSchedule[]
+  appointments    Appointment[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  updates         DoctorUpdates[]
+}
+
+model DoctorSchedule {
+  id          String      @id @default(cuid())
+  doctor      Doctor      @relation(fields: [doctorId], references: [id] )
+  doctorId    String
+  dayOfWeek   Int
+  startTime   String
+  endTime     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([doctorId, dayOfWeek])
+}
+
+model DoctorUpdates {
+  id          String        @id @default(cuid())
+  doctorId    String        
+  doctor      Doctor        @relation(fields: [doctorId], references: [id])
+
+  date        DateTime
+  type        UpdatesType
+
+  startTime   String?
+  endTime     String?
+  reason      String?
+  createdAt   DateTime      @default(now())
+}
+
+enum UpdatesType {
+  UNAVAILABLE
+  EXTRA_HOURS
+  EXTRA_SLOTS
+}
+
+model Appointment {
+  id            String      @id @default(cuid())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  doctor        Doctor      @relation(fields: [doctorId], references: [id])
+  doctorId      String
+  scheduleAt    DateTime
+  durationMins  Int
+  status        AppointmentStatus @default(SCHEDULED)
+  notes         String?
+  visitCompleted  Boolean   @default(false)
+  createdAt     DateTime    @default(now())
+  cancelledAt   DateTime?
+  updatedAt     DateTime    @updatedAt
+  completedAt   DateTime?
+
+  @@index([doctorId, scheduleAt])
+  @@index([userId, scheduleAt])
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  type        String
+  payload     Json
+
+  status      NotificationStatus @default(PENDING)
+  sentAt      DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([status, createdAt])
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model AdminDashboardSync {
+  id          String      @id @default(cuid())
+  doctorId    String
+  date        String
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([doctorId, date])
+  @@index([doctorId, date])
+}
