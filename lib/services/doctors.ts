@@ -1,14 +1,20 @@
+import { format } from "date-fns";
 import { db } from "../prisma/prisma";
+import { fromZonedTime } from "date-fns-tz";
 
 //GET- all doctors with their schedule
+const CLINIC_TZ = process.env.NEXT_PUBLIC_CLINIC_TZ || "Asia/Kolkata";
+
 export async function getDoctorWithTodayUpdates() {
-  const today = new Date();
+  // Get today's date string in the clinic's timezone, not the server's
+  const nowInClinic = new Date(
+    new Date().toLocaleString("en-US", { timeZone: CLINIC_TZ })
+  );
+  const todayStr = format(nowInClinic, "yyyy-MM-dd");
 
-  const dayStart = new Date(today);
-  dayStart.setHours(0, 0, 0, 0);
-
-  const dayEnd = new Date(today);
-  dayEnd.setHours(23, 59, 59, 999);
+  // Convert clinic-local midnight → UTC for Prisma query
+  const dayStart = fromZonedTime(`${todayStr} 00:00:00`, CLINIC_TZ);
+  const dayEnd = fromZonedTime(`${todayStr} 23:59:59`, CLINIC_TZ);
 
   return db.doctor.findMany({
     select: {
