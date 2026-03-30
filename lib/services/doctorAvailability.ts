@@ -3,7 +3,7 @@ import { RedisKeys, TTL } from "../redis/key";
 import { prismaUnsafe } from "../prisma/prisma-unsafe";
 import { fromZonedTime } from "date-fns-tz";
 
-const CLINIC_TZ = process.env.CLINIC_TZ || "Asia/Kolkata";
+const CLINIC_TZ = process.env.NEXT_PUBLIC_CLINIC_TZ || "Asia/Kolkata";
 
 type Slot = {
   start: string;

@@ -12,7 +12,7 @@ import { differenceInMinutes, format, isBefore } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const CLINIC_TZ = process.env.CLINIC_TZ;
+const CLINIC_TZ = process.env.NEXT_PUBLIC_CLINIC_TZ;
 const CANCEL_DEADLINE_MINS=120;
 const SLOT_DURATION =15;
 

@@ -4,7 +4,7 @@ import { fromZonedTime } from "date-fns-tz";
 import { NextResponse } from "next/server";
 
 const SLOT_DURATION = 15;
-const CLINIC_TZ = process.env.CLINIC_TZ || "Asia/Kolkata";
+const CLINIC_TZ = process.env.NEXT_PUBLIC_CLINIC_TZ || "Asia/Kolkata";
 
 export async function GET(req: Request) {
   try {

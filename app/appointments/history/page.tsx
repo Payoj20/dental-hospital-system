@@ -10,7 +10,7 @@ import { auth } from "@/lib/firebase/config";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-const CLINIC_TZ = process.env.CLINIC_TZ;
+const CLINIC_TZ = process.env.NEXT_PUBLIC_CLINIC_TZ;
 
 type Doctor = {id:string; name:string};
 
