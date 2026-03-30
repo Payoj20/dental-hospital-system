@@ -1,7 +1,7 @@
 "use client";
 
 import StatusDropdown from "@/components/admin/StatusDropdown";
-import SummayCard from "@/components/admin/SummayCard";
+import SummaryCard from "@/components/admin/SummaryCard";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import {
@@ -24,7 +24,8 @@ import { format } from "date-fns";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FaRegCalendarCheck } from "react-icons/fa";
-import { LuLayoutGrid, LuCalendarPlus } from "react-icons/lu";
+import { LuLayoutGrid, LuCalendarPlus, LuCalendarDays, LuStethoscope, LuRefreshCw } from "react-icons/lu";
+import { IoBarChartSharp } from "react-icons/io5";
 import {
   FaUserCheck,
   FaCircleCheck,
@@ -45,6 +46,7 @@ type Appointment = {
   id: string;
   scheduleAt: string;
   status: string;
+  notes?:string | null;
   user: {
     fullName: string;
     phoneNumber?: string;
@@ -62,6 +64,14 @@ type Summary = {
   cancelled: number;
 };
 
+const STATUS_BADGE: Record<string, string> = {
+  SCHEDULED: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+  CHECKED_IN: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+  COMPLETED: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+  CANCELLED: "bg-red-500/10 text-red-400 border-red-500/30",
+  NO_SHOW: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+};
+
 const AdminAppointmentPage = () => {
   const router = useRouter();
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -71,6 +81,7 @@ const AdminAppointmentPage = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialLoading, setInitialLoading] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
   const refreshingRef = useRef(false);
   const lastVersionRef = useRef<string | null>(null);
@@ -136,6 +147,7 @@ const AdminAppointmentPage = () => {
 
       setAppointments(appointmentData.appointments ?? []);
       setSummary(summaryData.summary ?? null);
+      setLastRefreshed(new Date());
     } catch (error) {
       console.log(error);
       toast.error("Failed to refresh data");
@@ -183,187 +195,303 @@ const AdminAppointmentPage = () => {
     return () => clearInterval(interval);
   }, [doctorId, date, refreshData]);
 
+  const selectedDoctor = doctors.find((d) => d.id === doctorId);
+  const isToday = format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-28 space-y-10">
-      <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold">Appointments Management</h1>
-        <p className="text-muted-foreground">
-          Select doctor and date to manage appointments
-        </p>
+    <div className="max-w-7xl mx-auto px-4 py-28 space-y-8">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Appointments</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage daily appointments and patient check-ins
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {lastRefreshed && (
+            <span className="text-xs text-muted-foreground">
+              Updated {format(lastRefreshed, "hh:mm:ss a")}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+            onClick={() => router.push("/admin/analytics")}
+          >
+            <IoBarChartSharp className="mr-2 h-4 w-4" />
+            Analytics
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-purple-400 border-purple-500/30 hover:bg-purple-500/10"
+            onClick={() => router.push("/admin/doctor-availability")}
+          >
+            <LuCalendarDays className="mr-2 h-4 w-4" />
+            Availability
+          </Button>
+        </div>
       </div>
 
+      {/* Doctor + Date selector */}
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/*Doctor */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Doctor</label>
+          {/* Doctor select */}
+          <div className="space-y-3">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Doctor
+            </label>
             <Select value={doctorId} onValueChange={setDoctorId}>
-              <SelectTrigger className="mt-5">
-                <SelectValue placeholder="Select Doctor" />
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Select a doctor" />
               </SelectTrigger>
               <SelectContent>
                 {doctors.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                    {d.specialization && ` -${d.specialization}`}
+                    <div className="flex items-center gap-2">
+                      <LuStethoscope className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{d.name}</span>
+                      {d.specialization && (
+                        <span className="text-muted-foreground text-xs">
+                          — {d.specialization}
+                        </span>
+                      )}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Selected doctor info */}
+            {selectedDoctor && (
+              <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-1">
+                <p className="text-sm font-medium">{selectedDoctor.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedDoctor.specialization}
+                </p>
+              </div>
+            )}
           </div>
 
-          {/*Calendar */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Date</label>
+          {/* Calendar */}
+          <div className="space-y-3">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Date
+            </label>
             <Calendar
               mode="single"
               selected={date}
               onSelect={(d) => d && setDate(d)}
+              className="rounded-lg border border-border"
             />
           </div>
 
-          <div className="flex items-center justify-center text-center">
-            <div>
-              <p className="text-xs text-muted-foreground">Selected Date</p>
-              <p className="text-lg font-semibold">
-                {format(date, "dd MMM yyyy")}
+          {/* Date summary */}
+          <div className="flex flex-col justify-center gap-4">
+            <div className="rounded-lg border border-border bg-muted/20 px-5 py-4 space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                Selected date
               </p>
+              <p className="text-2xl font-bold">{format(date, "dd")}</p>
+              <p className="text-sm text-muted-foreground">
+                {format(date, "MMMM yyyy")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {format(date, "EEEE")}
+              </p>
+              {isToday && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full mt-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Today
+                </span>
+              )}
+            </div>
 
+            {doctorId && (
               <Button
                 variant="outline"
-                className="mt-3 text-blue-500 hover:text-blue-600"
-                onClick={() => router.push("/admin/doctor-availability")}
+                size="sm"
+                className="text-sm"
+                disabled={initialLoading}
+                onClick={refreshData}
               >
-                Manage Availability
+                <LuRefreshCw className={`mr-2 h-3.5 w-3.5 ${initialLoading ? "animate-spin" : ""}`} />
+                Refresh
               </Button>
-            </div>
+            )}
           </div>
         </div>
       </Card>
 
-      {/*Summary */}
+      {/* Summary cards */}
       {doctorId && summary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          <SummayCard
-            label="Total Slots"
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
+          <SummaryCard
+            label="Total slots"
             value={summary.totalSlots}
             icon={LuLayoutGrid}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-slate-500/10 text-slate-400"
           />
-
-          <SummayCard
-            label="Available Slots"
+          <SummaryCard
+            label="Available"
             value={summary.availableSlots}
             icon={LuCalendarPlus}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-teal-500/10 text-teal-400"
           />
-
-          <SummayCard
-            label="Total Booked"
+          <SummaryCard
+            label="Booked"
             value={summary.totalBooked}
             icon={FaRegCalendarCheck}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-blue-500/10 text-blue-400"
           />
-
-          <SummayCard
-            label="Checked In"
+          <SummaryCard
+            label="Checked in"
             value={summary.checkedIn}
             icon={FaUserCheck}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-purple-500/10 text-purple-400"
           />
-
-          <SummayCard
+          <SummaryCard
             label="Completed"
             value={summary.completed}
             icon={FaCircleCheck}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-emerald-500/10 text-emerald-400"
           />
-
-          <SummayCard
-            label="No Show"
+          <SummaryCard
+            label="No show"
             value={summary.noShow}
             icon={FaUserXmark}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-orange-500/10 text-orange-400"
           />
-
-          <SummayCard
+          <SummaryCard
             label="Cancelled"
             value={summary.cancelled}
             icon={FaBan}
-            color="bg-blue-500/10 text-blue-500"
+            color="bg-red-500/10 text-red-400"
           />
         </div>
       )}
 
-      {/* RESULT */}
-      <Card className="p-10 text-center">
+      {/* Appointments table */}
+      <Card className="overflow-hidden">
         {!doctorId ? (
-          <p className="text-muted-foreground">Please select a doctor</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <LuStethoscope className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No doctor selected</p>
+            <p className="text-sm text-muted-foreground">
+              Select a doctor above to view their appointments
+            </p>
+          </div>
         ) : initialLoading ? (
-          <p className="text-muted-foreground justify-center items-center flex">
-            <Spinner className="text-blue-500 animate-spin mr-1" />
-            Loading appointments
-          </p>
+          <div className="flex items-center justify-center py-20 gap-3 text-muted-foreground">
+            <Spinner className="text-blue-500 animate-spin h-5 w-5" />
+            <span>Loading appointments...</span>
+          </div>
         ) : appointments.length === 0 ? (
-          <p className="text-muted-foreground">
-            No appointments for selected doctor on this date
-          </p>
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <LuCalendarDays className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No appointments</p>
+            <p className="text-sm text-muted-foreground">
+              {selectedDoctor?.name} has no appointments on{" "}
+              {format(date, "dd MMM yyyy")}
+            </p>
+          </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead>Patient Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="w-12 text-xs uppercase tracking-wider">#</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider">Time</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider">Patient</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider">Phone</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider">Complaint</TableHead>
+                <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {appointments.map((a, index) => (
-                <TableRow key={a.id}>
-                  {/*number */}
-                  <TableCell className="font-medium text-left">
+                <TableRow
+                  key={a.id}
+                  className="border-border/50 hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="text-muted-foreground text-sm">
                     {index + 1}
                   </TableCell>
 
-                  {/*Time */}
-                  <TableCell className="text-left">
-                    {new Date(a.scheduleAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <TableCell>
+                    <span className="font-mono text-sm font-medium">
+                      {new Date(a.scheduleAt).toLocaleTimeString("en-IN", {
+                        timeZone: "Asia/Kolkata",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
                   </TableCell>
 
-                  {/*PatientName */}
-                  <TableCell className="font-medium text-left">
+                  <TableCell className="font-medium">
                     {a.user.fullName}
                   </TableCell>
 
-                  {/*Phone */}
-                  <TableCell className="text-muted-foreground text-left">
-                    {a.user.phoneNumber ?? "-"}
+                  <TableCell className="text-muted-foreground text-sm font-mono">
+                    {a.user.phoneNumber ?? (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
                   </TableCell>
 
-                  {/*Status */}
-                  <TableCell className="text-left">
+                  <TableCell className="max-w-[200px]">
+                    {a.notes ? (
+                      <span
+                        className="text-xs text-blue-400 truncate block"
+                        title={a.notes}
+                      >
+                        {a.notes}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40 text-xs">—</span>
+                    )}
+                  </TableCell>
+
+                  <TableCell>
                     <StatusDropdown
                       appointmentId={a.id}
                       currentStatus={a.status}
                       onUpdated={refreshData}
                     />
                   </TableCell>
-
-                  {/*Action */}
-                  <TableCell className="text-muted-foreground text-right">
-                    -
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        )}
+
+        {/* Footer */}
+        {appointments.length > 0 && (
+          <div className="border-t border-border/50 px-6 py-3 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {appointments.length} appointment{appointments.length !== 1 ? "s" : ""} on{" "}
+              {format(date, "dd MMM yyyy")}
+            </p>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {Object.entries(STATUS_BADGE).map(([status, cls]) => {
+                const count = appointments.filter((a) => a.status === status).length;
+                if (!count) return null;
+                return (
+                  <span
+                    key={status}
+                    className={`px-2 py-0.5 rounded-full border text-xs font-medium ${cls}`}
+                  >
+                    {count} {status.replace("_", " ").toLowerCase()}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
         )}
       </Card>
     </div>

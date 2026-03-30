@@ -3,6 +3,11 @@ import { verifyFirebaseToken } from "@/lib/firebase/firebaseAdmin";
 import { createNotification } from "@/lib/notifications/notifications";
 import { db } from "@/lib/prisma/prisma";
 import { NextResponse } from "next/server";
+import { getRedis } from "@/lib/redis/client";
+import { RedisKeys, TTL } from "@/lib/redis/key";
+
+const MAX_BOOKING_PER_MINUTE = 3; 
+const MAX_NOTES_LENGTH = 500;
 
 //POST-Book appointment
 export async function POST(req: Request) {
@@ -16,7 +21,24 @@ export async function POST(req: Request) {
     const token = authHeader.replace("Bearer", "").trim();
     const decoded = await verifyFirebaseToken(token);
 
-    //get the user
+    //Redis rate limiting
+    const redis = getRedis();
+    const rateLimitKey = RedisKeys.bookingRateLimit(decoded.uid);
+
+    //Increment counter, set TTL on first hit
+    const attempts = await redis.incr(rateLimitKey);
+    if (attempts===1) {
+      await redis.expire(rateLimitKey, TTL.bookingRateLimit);
+    }
+
+    if(attempts> MAX_BOOKING_PER_MINUTE) {
+      return NextResponse.json(
+        {error: "Too many booking attempts. Please try again later."},
+        {status:429}
+      )
+    }
+
+    //Get the user
     const user = await db.user.findUnique({
       where: { firebaseUid: decoded.uid },
     });
@@ -25,11 +47,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    //input
-    const { doctorId, startTime, durationMins } = await req.json();
+    //Input
+    const { doctorId, startTime, durationMins, notes } = await req.json();
 
     if (!doctorId || !startTime || !durationMins) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    //Notes
+    if(notes && notes.length> MAX_NOTES_LENGTH) {
+      return NextResponse.json({error: `Complain or note must be under ${MAX_NOTES_LENGTH} character.`},
+        {status: 400}
+      )
     }
 
     const start = new Date(startTime);
@@ -59,7 +88,7 @@ export async function POST(req: Request) {
     const dayEnd = new Date(start);
     dayEnd.setHours(23, 59, 59, 999);
 
-    //check doctor unavailable
+    //Check doctor unavailable
     const startTimeStr = start.toTimeString().slice(0, 5);
 
     const unavailable = await db.doctorUpdates.findFirst({
@@ -68,10 +97,10 @@ export async function POST(req: Request) {
         type: "UNAVAILABLE",
         date: { gte: dayStart, lte: dayEnd },
         OR: [
-          //full day unavailable
+          //Full day unavailable
           { startTime: null, endTime: null },
 
-          //for some time
+          //For some time
           {
             startTime: { lte: startTimeStr },
             endTime: { gt: startTimeStr },
@@ -90,7 +119,7 @@ export async function POST(req: Request) {
       );
     }
 
-    //appointment already exist for the user
+    //Appointment already exist for the user
     const existing = await db.appointment.findFirst({
       where: {
         userId: user.id,
@@ -108,7 +137,7 @@ export async function POST(req: Request) {
       );
     }
 
-    //no overlap
+    //Prevnt slot overlap
     const conflict = await db.appointment.findFirst({
       where: {
         doctorId,
@@ -128,17 +157,18 @@ export async function POST(req: Request) {
       );
     }
 
-    //save appointment
+    //Save appointment
     const appointment = await db.appointment.create({
       data: {
         userId: user.id,
         doctorId,
         scheduleAt: start,
         durationMins,
+        notes: notes?.trim() || null,
       },
     });
 
-    //send confirmed notification
+    //Send confirmed notification
     await createNotification(user.id, "SCHEDULED", {
       date: start.toISOString(),
       doctorName: doctor.name,
@@ -155,11 +185,11 @@ export async function POST(req: Request) {
           date: start.toISOString(),
           doctorName: doctor.name,
         },
-        createdAt: reminderTime, // scheduled time
+        createdAt: reminderTime,
       },
     });
 
-    //data changed
+    //Data changed
     await invalidateAvailability(
       appointment.doctorId,
       appointment.scheduleAt.toISOString().split("T")[0],

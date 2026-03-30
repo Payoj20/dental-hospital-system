@@ -13,6 +13,6 @@ export async function GET(
     return NextResponse.json({ error: "Date required" }, { status: 400 });
   }
 
-  const slots = await getDoctorAvailability(doctorId, date);
-  return NextResponse.json({ slots });
+  const result = await getDoctorAvailability(doctorId, date);
+  return NextResponse.json(result);
 }

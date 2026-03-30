@@ -2,7 +2,7 @@ import { requireAdmin } from "@/app/api/auth/admin";
 import { db } from "@/lib/prisma/prisma";
 import { NextResponse } from "next/server";
 
-//POST-Mark doctor unavailable
+//POST- Mark doctor unavailable
 export async function POST(req: Request) {
   try {
     await requireAdmin(req);
@@ -23,11 +23,13 @@ export async function POST(req: Request) {
       );
     }
 
-    //unavailable record
+    const dateAsDateTime = new Date(date);
+
+    //Unavailable record
     const update = await db.doctorUpdates.create({
       data: {
         doctorId,
-        date,
+        date: dateAsDateTime,
         type: "UNAVAILABLE",
         startTime: startTime ?? null,
         endTime: endTime ?? null,
@@ -37,10 +39,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ update });
   } catch (error) {
-    console.log(error);
+    console.error("POST /doctor/updates error:", error);
+    if (error instanceof Error && error.message === "Forbidden") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
     return NextResponse.json(
-      { error: "Failed to create doctor unavailable" },
-      { status: 500 },
+      { error: "Failed to create unavailability record" },
+      { status: 500 }
     );
   }
 }
@@ -61,18 +66,28 @@ export async function GET(req: Request) {
       );
     }
 
+    const dayStart = new Date(`${date}T00:00:00.000Z`);
+    const dayEnd = new Date(`${date}T23:59:59.999Z`);
+
     //fetch unavailable doctor
     const updates = await db.doctorUpdates.findMany({
       where: {
         doctorId,
         type: "UNAVAILABLE",
-        date,
+        date: {gte: dayStart, lte: dayEnd},
       },
       orderBy: { startTime: "asc" },
     });
 
     return NextResponse.json({ updates });
   } catch (error) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    console.error("Error:", error);
+    if (error instanceof Error && error.message === "Forbidden") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+    return NextResponse.json(
+      { error: "Failed to fetch unavailability records" },
+      { status: 500 }
+    );
   }
 }

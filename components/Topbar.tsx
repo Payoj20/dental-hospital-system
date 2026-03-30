@@ -24,12 +24,15 @@ const Topbar = () => {
         {/* DESKTOP MENU */}
         <nav className="hidden md:flex items-center space-x-6 text-sm tracking-wide">
           {user && isAdmin && (
+            <div className="flex items-center gap-2">
             <Button
               variant="outline"
               className="text-blue-500 hover:text-blue-600"
             >
               <Link href="/admin/dashboard">Admin Dashboard</Link>
             </Button>
+            </div>
+            
           )}
           <Link href="/doctors" className="hover:text-blue-500">Doctors</Link>
           {!user ? (

@@ -9,7 +9,7 @@ type SummaryCardProps = {
   color: string;
 };
 
-const SummayCard: React.FC<SummaryCardProps> = ({
+const SummaryCard: React.FC<SummaryCardProps> = ({
   label,
   value,
   icon: Icon,
@@ -31,4 +31,4 @@ const SummayCard: React.FC<SummaryCardProps> = ({
   );
 };
 
-export default SummayCard;
+export default SummaryCard;

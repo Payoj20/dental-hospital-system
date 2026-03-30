@@ -83,7 +83,7 @@ const Footer = () => {
               <a
                 href="https://github.com/Payoj20"
                 target="_blank"
-                rel="noopener noreferre"
+                rel="noopener noreferrer"
                 className="p-2 rounded-md bg-muted hover:bg-blue-600 transition"
               >
                 <FaGithub className="h-4 w-4 text-white" />
@@ -91,7 +91,7 @@ const Footer = () => {
               <a
                 href="https://www.linkedin.com/in/payoj-mandpe-95a19524a/"
                 target="_blank"
-                rel="noopener noreferre"
+                rel="noopener noreferrer"
                 className="p-2 rounded-md bg-muted hover:bg-blue-600 transition"
               >
                 <FaLinkedinIn className="h-4 w-4 text-white" />
@@ -99,7 +99,7 @@ const Footer = () => {
               <a
                 href="mailto:payojmandpe20@gmail.com"
                 target="_blank"
-                rel="noopener noreferre"
+                rel="noopener noreferrer"
                 className="p-2 rounded-md bg-muted hover:bg-blue-600 transition"
               >
                 <MdOutlineEmail className="h-4 w-4 text-white" />

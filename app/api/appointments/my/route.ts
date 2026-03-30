@@ -21,7 +21,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "USer not found" }, { status: 404 });
     }
 
-    //fetch upcoming appointments
+    //Fetch upcoming appointments
     const appointments = await db.appointment.findMany({
       where: {
         userId: user.id,
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       include: {
         doctor: {
           select: {
+            id: true,
             name: true,
             specialization: true,
           },
