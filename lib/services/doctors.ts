@@ -12,7 +12,7 @@ export async function getDoctorWithTodayUpdates() {
   );
   const todayStr = format(nowInClinic, "yyyy-MM-dd");
 
-  // Convert clinic-local midnight → UTC for Prisma query
+  // Convert clinic-local midnight - UTC for Prisma query
   const dayStart = fromZonedTime(`${todayStr} 00:00:00`, CLINIC_TZ);
   const dayEnd = fromZonedTime(`${todayStr} 23:59:59`, CLINIC_TZ);
 
