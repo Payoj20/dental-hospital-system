@@ -12,7 +12,7 @@ type Slot = {
 };
 
 export type UnavailableBlock = {
-  startTime: string | null; // null = full day
+  startTime: string | null;
   endTime: string | null;
   reason: string | null;
   isFullDay: boolean;

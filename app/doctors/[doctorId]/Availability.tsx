@@ -361,7 +361,7 @@ const Availability: React.FC<AvailabilityProps> = ({
                 </span>
               </label>
               <Textarea
-                placeholder="e.g. Tooth pain on lower left, routine cleaning, follow-up..."
+                placeholder="e.g. Tooth pain, routine cleaning, follow-up..."
                 value={notes}
                 onChange={(e) => {
                   if (e.target.value.length <= MAX_NOTES)
